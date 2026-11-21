@@ -1,0 +1,23 @@
+# =============================================================================
+# Infrastructure Git Ignore
+# NEVER commit production secrets, database dumps, or private SSL keys to Git!
+# =============================================================================
+
+# Secrets & Environment Variables
+.env
+.env.*
+!.env.example
+!.env.production.example
+
+# SSL Certificates (Managed dynamically on VPS by Certbot)
+certbot/conf/
+certbot/www/
+
+# Database Backups
+backups/
+*.sql
+*.sql.gz
+
+# OS Metadata
+.DS_Store
+Thumbs.db
