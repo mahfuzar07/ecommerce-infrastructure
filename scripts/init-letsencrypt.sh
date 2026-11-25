@@ -20,33 +20,35 @@ echo "=========================================================="
 echo "🔐 Setting up SSL Certificates for: ${DOMAINS[*]}"
 echo "=========================================================="
 
-CERT_PATH="./certbot/conf/live/${PRIMARY_DOMAIN}"
+CERT_LIVE_DIR="/etc/letsencrypt/live/${PRIMARY_DOMAIN}"
 
-if [ -d "$CERT_PATH" ]; then
-    read -p "Existing certificate found for ${PRIMARY_DOMAIN}. Continue and replace? (y/N) " decision
+if docker compose -f docker-compose.prod.yml run --rm --entrypoint "test -d ${CERT_LIVE_DIR}" certbot 2>/dev/null; then
+    read -p "Existing certificate found for ${PRIMARY_DOMAIN} in certbot_conf volume. Continue and replace? (y/N) " decision
     if [ "$decision" != "y" ] && [ "$decision" != "Y" ]; then
         echo "Exiting without changes."
         exit 0
     fi
 fi
 
-# 1. Create dummy certificate so Nginx can start
-echo "📄 Creating dummy certificates for Nginx initial boot..."
-mkdir -p "$CERT_PATH"
-mkdir -p "./certbot/www"
-
-openssl req -x509 -nodes -newkey rsa:2048 -days 1 \
-    -keyout "$CERT_PATH/privkey.pem" \
-    -out "$CERT_PATH/fullchain.pem" \
-    -subj "/CN=localhost" 2>/dev/null
+# 1. Create dummy certificate inside the named certbot_conf volume so Nginx can start
+echo "Creating dummy certificates inside certbot_conf volume for Nginx initial boot..."
+docker compose -f docker-compose.prod.yml run --rm --entrypoint "\
+    sh -c 'mkdir -p ${CERT_LIVE_DIR} /var/www/certbot && \
+    openssl req -x509 -nodes -newkey rsa:2048 -days 1 \
+      -keyout ${CERT_LIVE_DIR}/privkey.pem \
+      -out ${CERT_LIVE_DIR}/fullchain.pem \
+      -subj /CN=localhost'" certbot
 
 # 2. Start Nginx container
-echo "🚀 Starting Nginx..."
+echo "Starting Nginx..."
 docker compose -f docker-compose.prod.yml up -d nginx
 
-# 3. Delete dummy certificates
-echo "🗑️  Removing dummy certificates..."
-rm -rf "$CERT_PATH"
+# 3. Delete dummy certificates from the named volume before requesting real ones
+echo "Removing dummy certificates..."
+docker compose -f docker-compose.prod.yml run --rm --entrypoint "\
+    rm -rf /etc/letsencrypt/live/${PRIMARY_DOMAIN} \
+           /etc/letsencrypt/archive/${PRIMARY_DOMAIN} \
+           /etc/letsencrypt/renewal/${PRIMARY_DOMAIN}.conf" certbot
 
 # 4. Request actual Let's Encrypt certificates using Certbot
 echo "🌐 Requesting real SSL certificates from Let's Encrypt..."

@@ -24,13 +24,17 @@ fi
 echo "🏗️  Building application Docker images..."
 docker compose -f ecommerce-infrastructure/docker-compose.prod.yml build
 
-# 3. Start or update containers
-echo "🔄 Starting application containers..."
-docker compose -f ecommerce-infrastructure/docker-compose.prod.yml up -d
+# 3. Ensure stateful backing services are healthy first
+echo "🗄️  Starting PostgreSQL and Redis..."
+docker compose -f ecommerce-infrastructure/docker-compose.prod.yml up -d postgres redis
 
-# 4. Wait for database & API to be ready, then run Prisma migrations
-echo "🗄️  Applying database migrations via Prisma..."
-docker compose -f ecommerce-infrastructure/docker-compose.prod.yml exec -T app npx prisma migrate deploy
+# 4. Run Prisma forward migrations BEFORE starting new API code
+echo "🔄 Applying database migrations via Prisma..."
+docker compose -f ecommerce-infrastructure/docker-compose.prod.yml run --rm app npx prisma migrate deploy
+
+# 5. Start or update application & proxy containers
+echo "🚀 Updating application and proxy containers..."
+docker compose -f ecommerce-infrastructure/docker-compose.prod.yml up -d
 
 # 5. Clean up old/dangling Docker images to save disk space
 echo "🧹 Pruning dangling docker images..."
