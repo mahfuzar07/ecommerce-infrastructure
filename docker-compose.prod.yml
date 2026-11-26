@@ -41,6 +41,8 @@ services:
     volumes:
       - certbot_conf:/etc/letsencrypt
       - certbot_www:/var/www/certbot
+    # Note: schedule a host cron or deploy-hook (`docker compose exec -T nginx nginx -s reload`)
+    # after certificate renewal so Nginx picks up renewed Let's Encrypt certificates.
     entrypoint: "/bin/sh -c 'trap exit TERM; while :; do certbot renew; sleep 12h & wait $${!}; done;'"
     networks:
       - ecommerce_network
