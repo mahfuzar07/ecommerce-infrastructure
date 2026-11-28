@@ -50,7 +50,7 @@ services:
   # Certbot (Automated Let's Encrypt SSL Certificates)
   # =========================================================================
   certbot:
-    image: certbot/certbot:latest
+    image: certbot/certbot:v3.2.0
     logging:
       driver: json-file
       options:
